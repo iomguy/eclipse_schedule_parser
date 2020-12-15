@@ -51,28 +51,25 @@ def parse_schedule(text, keywords):
 	# TODO: использовать os.linesep вместо \n (Eclipse может работать на Линуксе). Но почему-то у меня это не работает
 	keyword_regex = re.compile(rf"({keyword_template})\n(.+?)^/\s*$", re.MULTILINE | re.DOTALL)
 
-	date = ""
-	acc_list = []
+	# first well completion data may have no date
+	curr_date = ""
 
-	blocks = keyword_regex.findall(text)
-	if blocks:
-		for block in blocks:
-			keyword, lines = parse_keyword_block(block)
-			if keyword == "DATES":
-				date = lines[-1]
-			elif keyword == "COMPDAT":
-				for line in lines:
-					acc_list.append((date, line))
-			elif keyword == "COMPDATL":
-				for line in lines:
-					acc_list.append((date, line))
+	schedule_list = []
+	block_list = []
+
+	keyword_blocks = keyword_regex.findall(text)
+	if keyword_blocks:
+		for keyword_block in keyword_blocks:
+			keyword, keyword_lines = extract_lines_from_keyword_block(keyword_block)
+			curr_date, schedule_list, block_list =\
+				parse_keyword_block(keyword, keyword_lines, curr_date, schedule_list, block_list)
 	else:
 		raise Exception("No keywords found in file")
 
-	return acc_list
+	return schedule_list
 
 
-def parse_keyword_block(block):
+def extract_lines_from_keyword_block(block):
 	"""
 	@param block:
 	@return:
@@ -82,18 +79,77 @@ def parse_keyword_block(block):
 		# TODO: использовать os.linesep вместо \n (Eclipse может работать на Линуксе). Но почему-то у меня это не работает
 		lines = block[1].split("\n")[:-1]
 		# print(lines)
+
 	except:
 		raise Exception("No keyword or no data corresponds to a keyword")
 	
 	return (keyword, lines)
 
 
-def parse_keyword_line(line):
+def parse_keyword_block(keyword, keyword_lines, current_date, schedule_list, block_list):
 	"""
-	@param line:
+	@param keyword:
+	@param keyword_lines:
+	@param current_date:
+	@param schedule_list:
+	@param block_list:
 	@return:
 	"""
-	return
+	# TODO: чтобы не писать вермишель if-else-ов, можно сделать через eval и перенести весь функционал в парсеры кл. слов
+	# eval(f"{keyword}_parser({date},{keyword},{schedule_list})")
+	if keyword == "DATES":
+		for current_date_line in keyword_lines:
+			# current_date_line = keyword_lines[-1]
+			if block_list:
+				schedule_list.extend(block_list)
+				block_list = []
+			else:
+				schedule_list.append((current_date, ""))
+			current_date = parse_keyword_DATE_line(current_date_line)
+
+	elif keyword == "COMPDAT":
+		for well_comp_line in keyword_lines:
+			well_comp_data = parse_keyword_COMPDAT_line(well_comp_line)
+			block_list.append((current_date, well_comp_data))
+
+	elif keyword == "COMPDATL":
+		for well_comp_line in keyword_lines:
+			well_comp_data = parse_keyword_COMPDATL_line(well_comp_line)
+			block_list.append((current_date, well_comp_data))
+
+	return current_date, schedule_list, block_list
+
+
+def parse_keyword_DATE_line(current_date_line):
+	"""
+	@param current_date_line:
+	@return:
+	"""
+	date = re.sub(r"\s+/(\s+)?$", "", current_date_line)
+	return date
+
+
+def parse_keyword_COMPDAT_line(well_comp_line):
+	"""
+	@param well_comp_line:
+	@return:
+	"""
+	well_comp_line = re.sub(r"'|(\s+/(\s+)?$)", "", well_comp_line)
+	well_comp_line = re.split(r"\s+", well_comp_line)
+	well_comp_line.insert(1, 'NaN')
+	return well_comp_line
+
+
+def parse_keyword_COMPDATL_line(well_comp_line):
+	"""
+	@param well_comp_line:
+	@return:
+	"""
+	well_comp_line = re.sub(r"'|(\s+/(\s+)?$)", "", well_comp_line)
+	well_comp_line = re.split(r"\s+", well_comp_line)
+	return well_comp_line
+
+
 
 def results_to_csv(schedule_list, csv_file):
 	"""
