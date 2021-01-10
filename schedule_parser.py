@@ -2,9 +2,11 @@
 import re
 import pandas as pd
 # TODO: regex использовать os.linesep вместо \n (Eclipse может работать на Линуксе). Но почему-то у меня это не работает
+from typing import List, Tuple, Any, Union
 
 
-def transform_schedule(keywords, parameters, input_file, clean_file, output_csv=""):
+def transform_schedule(keywords: Tuple[str, ...], parameters: Tuple[str, ...], input_file: str,
+                       clean_file: str, output_csv: str = "") -> pd.DataFrame:
     """
     reads an input .inc file forming an output PanDas dataframe and writing output .inc and .csv files
     @param keywords: Eclipse keywords to be parsed
@@ -29,7 +31,7 @@ def transform_schedule(keywords, parameters, input_file, clean_file, output_csv=
     return schedule_df
 
 
-def read_schedule(path, mode, enc):
+def read_schedule(path: str, mode: str, enc: str) -> str:
     """
     reads the input .inc file forming a string of text
     @param path: path to the input .inc file
@@ -44,7 +46,7 @@ def read_schedule(path, mode, enc):
     return text
 
 
-def inspect_schedule(text):
+def inspect_schedule(text: str) -> bool:
     """
     inspects schedule syntax
     @param text: input text from .inc file
@@ -53,10 +55,13 @@ def inspect_schedule(text):
     # TODO: проверить, не пустой ли файл, есть ли закрывающая / в конце и т.д.
     text_accuracy = True
 
+    if text == "":
+        text_accuracy = False
+
     return text_accuracy
 
 
-def clean_schedule(text):
+def clean_schedule(text: str) -> str:
     """
     cleans '-- ' comments
     @param text: inspected input text from .inc file
@@ -68,18 +73,13 @@ def clean_schedule(text):
     return cleaned_from_newlines_and_extra_spaces_text
 
 
-def parse_schedule(text, keywords_tuple):
+def parse_schedule(text: str, keywords_tuple: Tuple[str]) -> List[List[str]]:
     """
     returns keywords text blocks ending with a newline "/"
     @param text: cleaned input text from .inc file
     @param keywords_tuple: a tuple of keywords we are interested in (DATES, COMPDAT, COMPDATL, etc.)
-    @return: keywords text blocks ending with a newline "/"
+    @return: list keywords text blocks ending with a newline "/"
     """
-    # keyword_regex = re.compile(r"(DATES|COMPDAT|COMPDATL)\n(.*?)^/$", re.MULTILINE | re.DOTALL)
-    keyword_template = "|".join(keywords_tuple)
-    # TODO: если в конце блока с командой не будет стоять "\n'\'", блок просто проигнорируется. Нужно кидать warning
-    keyword_regex = re.compile(rf"({keyword_template})\n(.*?)^/$", re.MULTILINE | re.DOTALL)
-
     # first well completion data may have no date
     curr_date = "NaN"
     keyword_lines = "NaN"
@@ -87,7 +87,7 @@ def parse_schedule(text, keywords_tuple):
     schedule_list = []
     block_list = []
 
-    keyword_blocks = keyword_regex.findall(text)
+    keyword_blocks = extract_keyword_blocks(text, keywords_tuple)
     if keyword_blocks:
         for keyword_block in keyword_blocks:
             keyword, keyword_lines = extract_lines_from_keyword_block(keyword_block)
@@ -103,7 +103,25 @@ def parse_schedule(text, keywords_tuple):
     return schedule_list
 
 
-def extract_lines_from_keyword_block(block):
+def extract_keyword_blocks(text: str, keywords_tuple: Tuple[str]) -> List[Tuple[str]]:
+    """
+    list of elements  ready to be transformed to the resulting DataFrame
+    @param text: cleaned input text from .inc file
+    @param keywords_tuple: a tuple of keywords we are interested in (DATES, COMPDAT, COMPDATL, etc.)
+    @return: list of elements [[DATA1, WELL1, PARAM1, PARAM2, ...], [DATA2, ...], ...] ready to be transformed
+    to the resulting DataFrame
+    """
+    # keyword_regex = re.compile(r"(DATES|COMPDAT|COMPDATL)\n(.*?)^/$", re.MULTILINE | re.DOTALL)
+    keyword_template = "|".join(keywords_tuple)
+    # TODO: если в конце блока с командой не будет стоять "\n'\'", блок просто проигнорируется. Нужно кидать warning
+    keyword_regex = re.compile(rf"({keyword_template})\n(.*?)^/$", re.MULTILINE | re.DOTALL)
+
+    keyword_blocks = keyword_regex.findall(text)
+
+    return keyword_blocks
+
+
+def extract_lines_from_keyword_block(block: Tuple[str]) -> Tuple[str, List[str]]:
     """
     extracts the main keyword and corresponding lines from a certain block from the input file
     @param block: a block of the input text related to the some keyword (DATA, COMPDAT, etc.)
@@ -122,7 +140,8 @@ def extract_lines_from_keyword_block(block):
     return keyword, lines
 
 
-def parse_keyword_block(keyword, keyword_lines, current_date, schedule_list, block_list):
+def parse_keyword_block(keyword: str, keyword_lines: List[str], current_date: Any,
+                        schedule_list: List[List[str]], block_list: List[List[str]]):
     """
     parses a block of the input text related to the current keyword (DATA, COMPDAT, etc.)
     @param keyword: DATA, COMPDAT, etc.
@@ -163,7 +182,7 @@ def parse_keyword_block(keyword, keyword_lines, current_date, schedule_list, blo
     return current_date, schedule_list, block_list
 
 
-def parse_keyword_DATE_line(current_date_line):
+def parse_keyword_DATE_line(current_date_line: str) -> str:
     """
     parses a line related to a current DATA keyword block
     @param current_date_line: line related to a current DATA keyword block
@@ -173,7 +192,7 @@ def parse_keyword_DATE_line(current_date_line):
     return date
 
 
-def parse_keyword_COMPDAT_line(well_comp_line):
+def parse_keyword_COMPDAT_line(well_comp_line: str) -> List[str]:
     """
     parses a line related to a current COMPDAT keyword block
     @param well_comp_line: line related to a current COMPDAT keyword block
@@ -186,7 +205,7 @@ def parse_keyword_COMPDAT_line(well_comp_line):
     return well_comp_line
 
 
-def parse_keyword_COMPDATL_line(well_comp_line):
+def parse_keyword_COMPDATL_line(well_comp_line: str) ->  List[str]:
     """
     parses a line related to a current COMPDATL keyword block
     @param well_comp_line: line related to a current COMPDATL keyword block
@@ -198,8 +217,7 @@ def parse_keyword_COMPDATL_line(well_comp_line):
     return well_comp_line
 
 
-
-def results_to_csv(schedule_list, csv_file, columns):
+def results_to_csv(schedule_list: List[List[str]], csv_file: str, columns: Union[bool, Tuple[str]]) -> pd.DataFrame:
     """
     forms PanDas dataframe with results and (optional) writes it into .csv file
     @param schedule_list: list of elements [[DATA1, WELL1, PARAM1, PARAM2, ...], [DATA2, ...], ...]
@@ -216,7 +234,7 @@ def results_to_csv(schedule_list, csv_file, columns):
     return result
 
 
-def find_schedule_well_data(schedule_df, well, date="ALL_DATES"):
+def find_schedule_well_data(schedule_df: pd.DataFrame, well: str, date: str = "ALL_DATES") -> pd.DataFrame:
     """
     finds appearances of completions for a certain well and (optional) for a certain date
     @param schedule_df: PanDas dataframe with Well completion schedule
@@ -235,7 +253,8 @@ def find_schedule_well_data(schedule_df, well, date="ALL_DATES"):
     return result
 
 
-def pretty_print_schedule_well_data(schedule_df, well, date, if_date_found):
+def pretty_print_schedule_well_data(schedule_df: pd.DataFrame, well: str, date: str,
+                                    if_date_found: pd.DataFrame) -> None:
     """
     prints the whole PanDas df of appearances of completions for a certain well and (optional) for a certain date
     @param schedule_df: dataframe of completions for a certain well and (optional) for a certain date
@@ -263,5 +282,3 @@ if __name__ == "__main__":
     input_file = "input_data/test_schedule.inc"
     clean_file = "output_data/handled_schedule.inc"
     output_csv = "output_data/schedule.csv"
-
-

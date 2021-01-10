@@ -1,10 +1,10 @@
 import schedule_parser
 
 
-def interactive_parser(schedule):
+def interactive_parser(schedule: schedule_parser.pd.DataFrame) -> None:
     """
     infinite cycle asking to type a well name and (optional) date to print corresponding completions
-    @param schedule: PanDas dataframe with rows like "<DATE>, <WellName>, <Param1>, <Param2>, ..."
+    @param schedule: pandas DataFrame with rows like "<DATE>, <WellName>, <Param1>, <Param2>, ..."
     @return: None
     """
     # вообще, я против While True
