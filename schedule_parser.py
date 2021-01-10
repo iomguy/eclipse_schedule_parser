@@ -22,6 +22,10 @@ def transform_schedule(keywords, parameters, input_file, clean_file, output_csv=
         with open(clean_file, "w", encoding="utf-8") as handled_file:
             handled_file.write(cleaned_text)
         schedule_df = results_to_csv(schedule, output_csv, columns=parameters)
+    else:
+        schedule_df = pd.DataFrame(columns=parameters)
+        print(f"{input_file} is inspected, mistakes are found: ")
+
     return schedule_df
 
 
