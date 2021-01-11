@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import re
 import pandas as pd
+import numpy as np
 # TODO: regex использовать os.linesep вместо \n (Eclipse может работать на Линуксе). Но почему-то у меня это не работает
 from typing import List, Tuple, Any, Union
 
@@ -81,8 +82,8 @@ def parse_schedule(text: str, keywords_tuple: Tuple[str]) -> List[List[str]]:
     @return: list keywords text blocks ending with a newline "/"
     """
     # first well completion data may have no date
-    curr_date = "NaN"
-    keyword_lines = "NaN"
+    curr_date = np.nan
+    keyword_lines = np.nan
 
     schedule_list = []
     block_list = []
@@ -162,7 +163,7 @@ def parse_keyword_block(keyword: str, keyword_lines: List[str], current_date: An
                 schedule_list.extend(block_list)
                 block_list = []
             else:
-                schedule_list.append([current_date, "NaN"])
+                schedule_list.append([current_date, np.nan])
             current_date = parse_keyword_DATE_line(current_date_line)
 
     elif keyword == "COMPDAT":
@@ -201,7 +202,7 @@ def parse_keyword_COMPDAT_line(well_comp_line: str) -> List[str]:
     # TODO: добавить учёт того, что могут задаваться не все параметры - нужно дополнять + существуют дефолтные параметры
     well_comp_line = re.sub(r"'|(\s+/$)", "", well_comp_line)
     well_comp_line = re.split(r"\s+", well_comp_line)
-    well_comp_line.insert(1, 'NaN')
+    well_comp_line.insert(1, np.nan)
     return well_comp_line
 
 
