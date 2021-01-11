@@ -1,4 +1,4 @@
-import schedule_parser
+from lib import schedule_parser
 
 
 def interactive_parser(schedule: schedule_parser.pd.DataFrame) -> None:
