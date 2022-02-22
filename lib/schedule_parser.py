@@ -9,7 +9,7 @@ from typing import List, Tuple, Any, Union
 def transform_schedule(keywords: Tuple[str, ...], parameters: Tuple[str, ...], input_file: str,
                        clean_file: str, output_csv: str = "") -> pd.DataFrame:
     """
-    reads an input .inc file forming an output PanDas dataframe and writing output .inc and .csv files
+    read an input .inc file forming an output PanDas dataframe and writing output .inc and .csv files
     @param keywords: Eclipse keywords to be parsed
     @param parameters: list of columns in output .csv file
     @param input_file: path to input .inc file
@@ -34,7 +34,7 @@ def transform_schedule(keywords: Tuple[str, ...], parameters: Tuple[str, ...], i
 
 def read_schedule(path: str, mode: str, enc: str) -> str:
     """
-    reads the input .inc file forming a string of text
+    read the input .inc file forming a string of text
     @param path: path to the input .inc file
     @param mode: reading mode
     @param enc: encoding
@@ -49,7 +49,7 @@ def read_schedule(path: str, mode: str, enc: str) -> str:
 
 def inspect_schedule(text: str) -> bool:
     """
-    inspects schedule syntax
+    inspect schedule syntax
     @param text: input text from .inc file
     @return: inspected input text from .inc file
     """
@@ -64,7 +64,7 @@ def inspect_schedule(text: str) -> bool:
 
 def clean_schedule(text: str) -> str:
     """
-    cleans '-- ' comments
+    clean '-- ' comments
     @param text: inspected input text from .inc file
     @return: cleaned input text from .inc file
     """
@@ -76,10 +76,11 @@ def clean_schedule(text: str) -> str:
 
 def parse_schedule(text: str, keywords_tuple: Tuple[str]) -> List[List[str]]:
     """
-    returns keywords text blocks ending with a newline "/"
+    return list of elements ready to be transformed to the resulting DataFrame
     @param text: cleaned input text from .inc file
     @param keywords_tuple: a tuple of keywords we are interested in (DATES, COMPDAT, COMPDATL, etc.)
-    @return: list keywords text blocks ending with a newline "/"
+    @return: list of elements [[DATA1, WELL1, PARAM1, PARAM2, ...], [DATA2, ...], ...] ready to be transformed
+    to the resulting DataFrame
     """
     # first well completion data may have no date
     curr_date = np.nan
@@ -106,11 +107,10 @@ def parse_schedule(text: str, keywords_tuple: Tuple[str]) -> List[List[str]]:
 
 def extract_keyword_blocks(text: str, keywords_tuple: Tuple[str]) -> List[Tuple[str]]:
     """
-    list of elements  ready to be transformed to the resulting DataFrame
+    return keywords text blocks ending with a newline "/"
     @param text: cleaned input text from .inc file
     @param keywords_tuple: a tuple of keywords we are interested in (DATES, COMPDAT, COMPDATL, etc.)
-    @return: list of elements [[DATA1, WELL1, PARAM1, PARAM2, ...], [DATA2, ...], ...] ready to be transformed
-    to the resulting DataFrame
+    @return: list keywords text blocks ending with a newline "/"
     """
     # keyword_regex = re.compile(r"(DATES|COMPDAT|COMPDATL)\n(.*?)^/$", re.MULTILINE | re.DOTALL)
     keyword_template = "|".join(keywords_tuple)
@@ -142,7 +142,9 @@ def extract_lines_from_keyword_block(block: Tuple[str]) -> Tuple[str, List[str]]
 
 
 def parse_keyword_block(keyword: str, keyword_lines: List[str], current_date: Any,
-                        schedule_list: List[List[str]], block_list: List[List[str]]):
+                        schedule_list: List[List[str]], block_list: List[List[str]]) \
+        -> Tuple[str, List[List[str]], List[List[str]]]:
+    # TODO: эту функцию хочется упростить - особенно описание
     """
     parses a block of the input text related to the current keyword (DATA, COMPDAT, etc.)
     @param keyword: DATA, COMPDAT, etc.
@@ -156,6 +158,7 @@ def parse_keyword_block(keyword: str, keyword_lines: List[str], current_date: An
         - block_list - updated block_list
     """
     # TODO: чтобы не писать вермишель if-else-ов, можно сделать через eval и перенести весь функционал в парсеры кл.слов
+    #  или с помощью словаря с функциями
     # eval(f"{keyword}_parser({date},{keyword},{schedule_list})")
     if keyword == "DATES" or keyword == "END":
         for current_date_line in keyword_lines:
@@ -199,23 +202,39 @@ def parse_keyword_COMPDAT_line(well_comp_line: str) -> List[str]:
     @param well_comp_line: line related to a current COMPDAT keyword block
     @return: list of parameters (+ NaN Loc. grid. parameter) in a COMPDAT line
     """
-    # TODO: добавить учёт того, что могут задаваться не все параметры - нужно дополнять + существуют дефолтные параметры
-    well_comp_line = re.sub(r"'|(\s+/$)", "", well_comp_line)
-    well_comp_line = re.split(r"\s+", well_comp_line)
-    well_comp_line.insert(1, np.nan)
-    return well_comp_line
+    # TODO: добавить учёт того, что в конце line может быть пустота, которая является дефолтными параметрами
+    unpacked_well_comp_line = default_params_unpacking_in_line(well_comp_line)
+    unpacked_well_comp_line = re.sub(r"'|(\s+/$)", "", unpacked_well_comp_line)
+    unpacked_well_comp_line = re.split(r"\s+", unpacked_well_comp_line)
+    unpacked_well_comp_line.insert(1, np.nan)
+    return unpacked_well_comp_line
 
 
-def parse_keyword_COMPDATL_line(well_comp_line: str) ->  List[str]:
+def parse_keyword_COMPDATL_line(well_comp_line: str) -> List[str]:
     """
     parses a line related to a current COMPDATL keyword block
     @param well_comp_line: line related to a current COMPDATL keyword block
     @return: list of parameters in a COMPDATL line
     """
-    # TODO: добавить учёт того, что могут задаваться не все параметры - нужно дополнять + существуют дефолтные параметры
-    well_comp_line = re.sub(r"'|(\s+/$)", "", well_comp_line)
-    well_comp_line = re.split(r"\s+", well_comp_line)
-    return well_comp_line
+    # TODO: добавить учёт того, что в конце line может быть пустота, которая является дефолтными параметрами
+    unpacked_well_comp_line = default_params_unpacking_in_line(well_comp_line)
+    unpacked_well_comp_line = re.sub(r"'|(\s+/$)", "", unpacked_well_comp_line)
+    unpacked_well_comp_line = re.split(r"\s+", unpacked_well_comp_line)
+    return unpacked_well_comp_line
+
+
+def default_params_unpacking_in_line(line: str) -> str:
+    """
+    unpacks default parameters set by the 'n*' expression
+    @param line: line related to a current COMPDAT/COMPDATL keyword block
+    @return: the unpacked line related to a current COMPDAT/COMPDATL keyword block
+    """
+    def match_evaluator(match):
+        number_of_default_params = int(match.group(1))
+        return " ".join(["DEFAULT"] * number_of_default_params)
+
+    unpacked_line = re.sub(r"(\d)\*", match_evaluator, line)
+    return unpacked_line
 
 
 def results_to_csv(schedule_list: List[List[str]], csv_file: str, columns: Union[bool, Tuple[str]]) -> pd.DataFrame:
