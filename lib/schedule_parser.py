@@ -51,7 +51,7 @@ def inspect_schedule(text: str) -> bool:
     """
     inspect schedule syntax
     @param text: input text from .inc file
-    @return: inspected input text from .inc file
+    @return: True if text is inspected successfully, False otherwise
     """
     # TODO: проверить, не пустой ли файл, есть ли закрывающая / в конце и т.д.
     text_accuracy = True
